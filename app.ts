@@ -1,12 +1,41 @@
 import express from 'express';
-const PORT: number = 6500;
+import * as http from 'http';
+import * as winston from 'winston';
+import * as expressWinston from 'express-winston';
+import { CommonRoutesConfig } from './common/common.routes.config';
+import { UserRoutes } from './users/users.routes.config';
+import debug from 'debug';
 
-const app = express();
+const PORT: number = 6500;
+const app: express.Application = express();
+const server: http.Server = http.createServer(app);
+const routes: Array<CommonRoutesConfig> = [];
+const debugLog: debug.IDebugger = debug('app');
+
+app.use(express.json());
+const loggerOptions: expressWinston.LoggerOptions = {
+    transports: [ new winston.transports.Console()],
+    format: winston.format.combine(
+        winston.format.json(),
+        winston.format.prettyPrint(),
+        winston.format.colorize( { all: true })
+    ),
+};
+if(!process.env.DEBUG) {
+    loggerOptions.meta = false; 
+}
+app.use(expressWinston.logger(loggerOptions));
+routes.push(new UserRoutes(app));
+
+const runningMessage: string = `Server running at at http://localhost:${PORT}`;
 
 app.get('/', (req: express.Request, res: express.Response) => {
-    res.send('Welcome to Techno Diary');
+    res.status(200).send(runningMessage);
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is listening to the port: ${PORT}`);
+server.listen(PORT, () => {
+    routes.forEach((route: CommonRoutesConfig) => {
+        debugLog(`Routes configured for ${route.getName()}`)
+    });
+    console.log(runningMessage);
 });
